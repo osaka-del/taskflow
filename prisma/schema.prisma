@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  name      String?
+  password  String
+  avatar    String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  tasks       Task[]
+  projects    Project[]
+  categories  Category[]
+  comments    Comment[]
+  collaborations Collaboration[]
+
+  @@map("users")
+}
+
+model Project {
+  id        String     @id @default(cuid())
+  name      String
+  description String?
+  color     String     @default("#3b82f6")
+  icon      String     @default("folder")
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  tasks         Task[]
+  categories    Category[]
+  collaborations Collaboration[]
+
+  @@unique([userId, name])
+  @@map("projects")
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  color     String     @default("#6366f1")
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  tasks Task[]
+
+  @@unique([userId, name])
+  @@map("categories")
+}
+
+model Tag {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  color     String     @default("#ec4899")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  tasks TaskTag[]
+
+  @@map("tags")
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      String     @default("todo") // todo, in-progress, done, archived
+  priority    String     @default("medium") // low, medium, high, urgent
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  completedAt DateTime?
+
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  parentId   String?
+  parent     Task?      @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
+
+  subtasks   Task[]     @relation("Subtasks")
+  tags       TaskTag[]
+  comments   Comment[]
+  attachments Attachment[]
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+model TaskTag {
+  id      String  @id @default(cuid())
+  taskId  String
+  task    Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tagId   String
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, tagId])
+  @@map("task_tags")
+}
+
+model Comment {
+  id        String     @id @default(cuid())
+  content   String
+  taskId    String
+  task      Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([taskId])
+  @@map("comments")
+}
+
+model Attachment {
+  id        String     @id @default(cuid())
+  filename  String
+  url       String
+  fileSize  Int
+  mimeType  String
+  taskId    String
+  task      Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@index([taskId])
+  @@map("attachments")
+}
+
+model Collaboration {
+  id        String     @id @default(cuid())
+  email     String
+  role      String     @default("viewer") // viewer, editor, admin
+  projectId String
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([projectId, email])
+  @@map("collaborations")
+}
